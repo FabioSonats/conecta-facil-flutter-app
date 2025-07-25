@@ -4,6 +4,10 @@ import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../auth/domain/entities/user_entity.dart';
 import '../../../auth/presentation/pages/login_page.dart';
 import '../../../profile/presentation/pages/profile_page.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:conecta_facil/features/service/domain/entities/service_entity.dart';
+import 'package:conecta_facil/features/service/data/models/service_model.dart';
+import 'package:conecta_facil/features/service/presentation/pages/service_form_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -52,10 +56,12 @@ class _HomePageState extends State<HomePage> {
           return LayoutBuilder(
             builder: (context, constraints) {
               final isDesktop = constraints.maxWidth >= 800;
+              final isMobile = constraints.maxWidth < 600;
               return ValueListenableBuilder<int>(
                 valueListenable: _selectedIndex,
                 builder: (context, selectedIndex, _) {
                   return Scaffold(
+                    backgroundColor: Theme.of(context).colorScheme.background,
                     appBar: AppBar(
                       title: const Text('Conecta Fácil'),
                       actions: [
@@ -82,69 +88,96 @@ class _HomePageState extends State<HomePage> {
                     ),
                     drawer: isDesktop
                         ? null
-                        : Drawer(
-                            child: ListView(
-                              children: [
-                                const DrawerHeader(child: Text('Menu')),
-                                ListTile(
-                                  leading: const Icon(Icons.home),
-                                  title: const Text('Início'),
-                                  onTap: () {
-                                    _selectedIndex.value = 0;
-                                    Navigator.pop(context);
-                                  },
-                                ),
-                                ListTile(
-                                  leading: const Icon(Icons.build),
-                                  title: const Text('Serviços'),
-                                  onTap: () {
-                                    _selectedIndex.value = 1;
-                                    Navigator.pop(context);
-                                  },
-                                ),
-                                ListTile(
-                                  leading: const Icon(Icons.person),
-                                  title: const Text('Perfil'),
-                                  onTap: () {
-                                    _selectedIndex.value = 2;
-                                    Navigator.pop(context);
-                                  },
-                                ),
-                              ],
-                            ),
-                          ),
+                        : null, // Drawer removido, usaremos BottomNavigationBar no mobile
                     body: Row(
                       children: [
                         if (isDesktop)
-                          NavigationRail(
-                            selectedIndex: selectedIndex,
-                            onDestinationSelected: (int index) {
-                              _selectedIndex.value = index;
-                            },
-                            labelType: NavigationRailLabelType.all,
-                            destinations: const [
-                              NavigationRailDestination(
-                                icon: Icon(Icons.home),
-                                label: Text('Início'),
+                          MouseRegion(
+                            onEnter: (_) => setState(() {}),
+                            onExit: (_) => setState(() {}),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              width: 72,
+                              decoration: BoxDecoration(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .surfaceVariant
+                                    .withOpacity(0.85),
+                                borderRadius: const BorderRadius.only(
+                                  topRight: Radius.circular(24),
+                                  bottomRight: Radius.circular(24),
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.08),
+                                    blurRadius: 12,
+                                    offset: const Offset(2, 0),
+                                  ),
+                                ],
                               ),
-                              NavigationRailDestination(
-                                icon: Icon(Icons.build),
-                                label: Text('Serviços'),
+                              child: NavigationRail(
+                                backgroundColor: Colors.transparent,
+                                selectedIndex: selectedIndex,
+                                onDestinationSelected: (int index) {
+                                  _selectedIndex.value = index;
+                                },
+                                labelType: NavigationRailLabelType.selected,
+                                leading: const SizedBox(height: 16),
+                                destinations: const [
+                                  NavigationRailDestination(
+                                    icon: Icon(Icons.home),
+                                    label: Text('Início'),
+                                  ),
+                                  NavigationRailDestination(
+                                    icon: Icon(Icons.build),
+                                    label: Text('Serviços'),
+                                  ),
+                                  NavigationRailDestination(
+                                    icon: Icon(Icons.person),
+                                    label: Text('Perfil'),
+                                  ),
+                                ],
                               ),
-                              NavigationRailDestination(
-                                icon: Icon(Icons.person),
-                                label: Text('Perfil'),
-                              ),
-                            ],
+                            ),
                           ),
                         Expanded(
                           child: Padding(
-                            padding: const EdgeInsets.all(16.0),
+                            padding: EdgeInsets.all(isMobile ? 4.0 : 16.0),
                             child: _getPage(selectedIndex, tipoPerfil, cidade),
                           ),
                         ),
                       ],
                     ),
+                    bottomNavigationBar: isMobile
+                        ? BottomNavigationBar(
+                            currentIndex: selectedIndex,
+                            onTap: (index) => _selectedIndex.value = index,
+                            backgroundColor: Theme.of(context)
+                                .colorScheme
+                                .surfaceVariant
+                                .withOpacity(0.95),
+                            selectedItemColor:
+                                Theme.of(context).colorScheme.primary,
+                            unselectedItemColor: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withOpacity(0.7),
+                            items: const [
+                              BottomNavigationBarItem(
+                                icon: Icon(Icons.home),
+                                label: 'Início',
+                              ),
+                              BottomNavigationBarItem(
+                                icon: Icon(Icons.build),
+                                label: 'Serviços',
+                              ),
+                              BottomNavigationBarItem(
+                                icon: Icon(Icons.person),
+                                label: 'Perfil',
+                              ),
+                            ],
+                          )
+                        : null,
                   );
                 },
               );
@@ -158,9 +191,13 @@ class _HomePageState extends State<HomePage> {
   Widget _getPage(int index, String tipoPerfil, String? cidade) {
     switch (index) {
       case 0:
-        return tipoPerfil == 'contratante'
-            ? _ContratanteHome(cidade: cidade)
-            : _PrestadorHome();
+        if (tipoPerfil == 'prestador') {
+          return const _PrestadorHome();
+        } else if (tipoPerfil == 'contratante') {
+          return _ContratanteHome(cidade: cidade);
+        } else {
+          return const Center(child: Text('Perfil de usuário desconhecido.'));
+        }
       case 1:
         return const Center(child: Text('Página de Serviços (em breve)'));
       case 2:
@@ -171,9 +208,41 @@ class _HomePageState extends State<HomePage> {
   }
 }
 
-class _ContratanteHome extends StatelessWidget {
+class _ContratanteHome extends StatefulWidget {
   final String? cidade;
   const _ContratanteHome({this.cidade});
+
+  @override
+  State<_ContratanteHome> createState() => _ContratanteHomeState();
+}
+
+class _ContratanteHomeState extends State<_ContratanteHome> {
+  String? _tipoSelecionado;
+  final List<String> _tipos = [
+    'Diarista',
+    'Jardinagem',
+    'Eletricista',
+    'Pintor(a)',
+    'Pedreiro',
+    'Cozinheiro(a)',
+    'Babá',
+    'Personal Trainer',
+    'Fotógrafo(a)',
+    'Manicure',
+    'Professor',
+  ];
+
+  Future<List<ServiceEntity>> fetchServices() async {
+    Query<Map<String, dynamic>> query =
+        FirebaseFirestore.instance.collection('services');
+    if (_tipoSelecionado != null) {
+      query = query.where('titulo', isEqualTo: _tipoSelecionado);
+    }
+    final snapshot = await query.get();
+    return snapshot.docs
+        .map((doc) => ServiceModel.fromMap(doc.data() as Map<String, dynamic>))
+        .toList();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -181,70 +250,328 @@ class _ContratanteHome extends StatelessWidget {
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 900),
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 8),
+          padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 8),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.start,
             children: [
-              // Barra de pesquisa
-              Padding(
-                padding: const EdgeInsets.only(bottom: 32.0),
-                child: SizedBox(
-                  width: 500,
-                  child: TextField(
-                    decoration: InputDecoration(
-                      hintText: 'Buscar serviço ou profissional...',
-                      prefixIcon: const Icon(Icons.search),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
+              // Card de filtros mais compacto e escuro
+              Card(
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(18)),
+                color: Theme.of(context).colorScheme.surface.withOpacity(0.92),
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 24, horizontal: 24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Encontre profissionais próximos a você',
+                        style: Theme.of(context)
+                            .textTheme
+                            .titleLarge
+                            ?.copyWith(fontWeight: FontWeight.bold),
                       ),
-                      filled: true,
-                      fillColor: Theme.of(context).cardColor,
-                    ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Selecione o tipo de serviço ou busque diretamente',
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                      const SizedBox(height: 18),
+                      Row(
+                        children: [
+                          Expanded(
+                            flex: 2,
+                            child: DropdownButtonFormField<String>(
+                              value: _tipoSelecionado,
+                              decoration: InputDecoration(
+                                labelText: null,
+                                border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12)),
+                                contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 12),
+                              ),
+                              items: [
+                                const DropdownMenuItem(
+                                  value: null,
+                                  child: Text('Todos os tipos'),
+                                ),
+                                ..._tipos.map((tipo) => DropdownMenuItem(
+                                      value: tipo,
+                                      child: Text(tipo),
+                                    ))
+                              ],
+                              onChanged: (v) =>
+                                  setState(() => _tipoSelecionado = v),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            flex: 3,
+                            child: TextField(
+                              decoration: InputDecoration(
+                                hintText: 'Buscar serviço ou profissional...',
+                                prefixIcon: const Icon(Icons.search),
+                                border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12)),
+                                contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 12),
+                                filled: true,
+                                fillColor:
+                                    Theme.of(context).colorScheme.background,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
               ),
-              // Categorias populares
-              Center(
-                child: Text('Categorias populares',
-                    style: Theme.of(context).textTheme.titleLarge),
+              const SizedBox(height: 28),
+              // Título categorias alinhado à esquerda
+              Text('Categorias Populares',
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleMedium
+                      ?.copyWith(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 12),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  int crossAxisCount = constraints.maxWidth > 700 ? 4 : 2;
+                  return GridView.count(
+                    crossAxisCount: crossAxisCount,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    mainAxisSpacing: 8,
+                    crossAxisSpacing: 8,
+                    childAspectRatio: 1.1,
+                    children: _categorias
+                        .map((cat) => Tooltip(
+                              message: cat['nome'],
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .primary
+                                          .withOpacity(0.10),
+                                      borderRadius: BorderRadius.circular(14),
+                                    ),
+                                    padding: const EdgeInsets.all(14),
+                                    child: Icon(cat['icone'] as IconData,
+                                        size: 30),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(cat['nome'],
+                                      textAlign: TextAlign.center,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodySmall),
+                                ],
+                              ),
+                            ))
+                        .toList(),
+                  );
+                },
               ),
               const SizedBox(height: 24),
-              Wrap(
-                spacing: 20,
-                runSpacing: 20,
-                alignment: WrapAlignment.center,
-                children: const [
-                  _AnimatedCategoriaCard('Jardinagem', Icons.grass),
-                  _AnimatedCategoriaCard('Limpeza', Icons.cleaning_services),
-                  _AnimatedCategoriaCard('Elétrica', Icons.electrical_services),
-                  _AnimatedCategoriaCard('Pintura', Icons.format_paint),
-                  _AnimatedCategoriaCard('Reformas', Icons.construction),
-                ],
+              // Título serviços em destaque alinhado à esquerda
+              Text('Serviços em Destaque',
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleMedium
+                      ?.copyWith(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 12),
+              FutureBuilder<List<ServiceEntity>>(
+                key: ValueKey(_tipoSelecionado),
+                future: fetchServices(),
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData)
+                    return const CircularProgressIndicator();
+                  final services = snapshot.data!;
+                  if (services.isEmpty) {
+                    // Modal para prestador sem serviços
+                    final user = context.read<AuthBloc>().state
+                            is AuthAuthenticated
+                        ? (context.read<AuthBloc>().state as AuthAuthenticated)
+                            .user
+                        : null;
+                    if (user != null && user.tipoPerfil == 'prestador') {
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        showDialog(
+                          context: context,
+                          builder: (_) => AlertDialog(
+                            title: const Text('Cadastre seu primeiro serviço!'),
+                            content: const Text(
+                                'Você ainda não cadastrou nenhum serviço. Clique em "Adicionar novo serviço" para começar.'),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: const Text('Fechar'),
+                              ),
+                              ElevatedButton(
+                                onPressed: () {
+                                  Navigator.pop(context);
+                                  Navigator.of(context)
+                                      .push(
+                                        MaterialPageRoute(
+                                            builder: (_) =>
+                                                const ServiceFormPage()),
+                                      )
+                                      .then((_) => setState(() {}));
+                                },
+                                child: const Text('Adicionar serviço'),
+                              ),
+                            ],
+                          ),
+                        );
+                      });
+                    }
+                    return const Center(
+                        child: Text('Nenhum serviço encontrado.'));
+                  }
+                  return LayoutBuilder(
+                    builder: (context, constraints) {
+                      int crossAxisCount = constraints.maxWidth > 700 ? 3 : 1;
+                      return GridView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: crossAxisCount,
+                          mainAxisSpacing: 24,
+                          crossAxisSpacing: 24,
+                          childAspectRatio: 1.9,
+                        ),
+                        itemCount: services.length,
+                        itemBuilder: (context, idx) {
+                          final service = services[idx];
+                          return FutureBuilder<
+                              DocumentSnapshot<Map<String, dynamic>>>(
+                            future: FirebaseFirestore.instance
+                                .collection('users')
+                                .doc(service.uidPrestador)
+                                .get(),
+                            builder: (context, userSnap) {
+                              if (userSnap.connectionState ==
+                                  ConnectionState.waiting) {
+                                return const Center(
+                                    child: CircularProgressIndicator());
+                              }
+                              final userData = userSnap.data?.data();
+                              final nome = userData?['nome'] ?? 'Profissional';
+                              final foto =
+                                  userData?['fotoPerfilUrl'] as String?;
+                              final cidade = service.cidade;
+                              final avaliacao = userData?['avaliacao'] ??
+                                  4.8; // mock se não houver
+                              final avaliacoes =
+                                  userData?['avaliacoes'] ?? 120; // mock
+                              return Card(
+                                elevation: 4,
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(20)),
+                                color: Theme.of(context).colorScheme.surface,
+                                child: Padding(
+                                  padding: const EdgeInsets.all(18.0),
+                                  child: Row(
+                                    children: [
+                                      CircleAvatar(
+                                        radius: 36,
+                                        backgroundImage:
+                                            foto != null && foto.isNotEmpty
+                                                ? NetworkImage(foto)
+                                                : null,
+                                        child: foto == null || foto.isEmpty
+                                            ? const Icon(Icons.person, size: 36)
+                                            : null,
+                                      ),
+                                      const SizedBox(width: 20),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            Text(nome,
+                                                style: Theme.of(context)
+                                                    .textTheme
+                                                    .titleMedium
+                                                    ?.copyWith(
+                                                        fontWeight:
+                                                            FontWeight.bold)),
+                                            Text('${service.titulo} - $cidade',
+                                                style: Theme.of(context)
+                                                    .textTheme
+                                                    .bodyMedium),
+                                            const SizedBox(height: 8),
+                                            Row(
+                                              children: [
+                                                Icon(Icons.star,
+                                                    color: Colors.amber,
+                                                    size: 20),
+                                                const SizedBox(width: 4),
+                                                Text('$avaliacao',
+                                                    style: const TextStyle(
+                                                        fontWeight:
+                                                            FontWeight.bold)),
+                                                Text(
+                                                    ' ($avaliacoes avaliações)',
+                                                    style: Theme.of(context)
+                                                        .textTheme
+                                                        .bodySmall),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      ElevatedButton(
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Theme.of(context)
+                                              .colorScheme
+                                              .primary,
+                                          foregroundColor: Colors.white,
+                                          shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(16)),
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 18, vertical: 12),
+                                        ),
+                                        onPressed: () {
+                                          Navigator.of(context).push(
+                                            MaterialPageRoute(
+                                              builder: (_) => ProfilePage(
+                                                  userId: service.uidPrestador),
+                                            ),
+                                          );
+                                        },
+                                        child: const Text('Ver Perfil'),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          );
+                        },
+                      );
+                    },
+                  );
+                },
               ),
               const SizedBox(height: 40),
-              Center(
-                child: Text('Serviços em destaque',
-                    style: Theme.of(context).textTheme.titleLarge),
-              ),
-              const SizedBox(height: 24),
-              Wrap(
-                spacing: 24,
-                runSpacing: 24,
-                alignment: WrapAlignment.center,
-                children: const [
-                  _AnimatedServiceCard('Jardinagem', 'São Paulo'),
-                  _AnimatedServiceCard('Limpeza', 'Campinas'),
-                  _AnimatedServiceCard('Elétrica', 'Santos'),
-                ],
-              ),
-              const SizedBox(height: 40),
-              if (cidade != null)
+              if (widget.cidade != null)
                 Center(
-                  child: Text('Sugestões em $cidade',
+                  child: Text('Sugestões em ${widget.cidade}',
                       style: Theme.of(context).textTheme.titleLarge),
                 ),
-              if (cidade != null)
+              if (widget.cidade != null)
                 Wrap(
                   spacing: 24,
                   runSpacing: 24,
@@ -254,7 +581,7 @@ class _ContratanteHome extends StatelessWidget {
                     _AnimatedServiceCard('Pintura', 'São Paulo'),
                   ],
                 ),
-              if (cidade != null) const SizedBox(height: 40),
+              if (widget.cidade != null) const SizedBox(height: 40),
               ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
                   padding:
@@ -268,7 +595,7 @@ class _ContratanteHome extends StatelessWidget {
               ),
               const SizedBox(height: 40),
               Card(
-                color: Colors.blue.shade50,
+                color: Theme.of(context).colorScheme.surface,
                 child: const ListTile(
                   leading: Icon(Icons.campaign),
                   title: Text('Encontre o profissional certo!'),
@@ -291,70 +618,220 @@ class _ContratanteHome extends StatelessWidget {
   }
 }
 
-class _PrestadorHome extends StatelessWidget {
+// Lista de categorias reais
+const List<Map<String, dynamic>> _categorias = [
+  {'nome': 'Diarista', 'icone': Icons.cleaning_services},
+  {'nome': 'Jardinagem', 'icone': Icons.grass},
+  {'nome': 'Eletricista', 'icone': Icons.electrical_services},
+  {'nome': 'Pintor(a)', 'icone': Icons.format_paint},
+  {'nome': 'Pedreiro', 'icone': Icons.construction},
+  {'nome': 'Cozinheiro(a)', 'icone': Icons.restaurant},
+  {'nome': 'Babá', 'icone': Icons.child_friendly},
+  {'nome': 'Personal Trainer', 'icone': Icons.fitness_center},
+  {'nome': 'Fotógrafo(a)', 'icone': Icons.camera_alt},
+  {'nome': 'Manicure', 'icone': Icons.spa},
+  {'nome': 'Professor', 'icone': Icons.school},
+  // ...adicione mais conforme sua lista
+];
+
+class _PrestadorHome extends StatefulWidget {
+  const _PrestadorHome();
+  @override
+  State<_PrestadorHome> createState() => _PrestadorHomeState();
+}
+
+class _PrestadorHomeState extends State<_PrestadorHome> {
+  Future<List<ServiceEntity>> fetchMyServices(String uid) async {
+    print('Buscando serviços para UID: $uid');
+    final snapshot = await FirebaseFirestore.instance
+        .collection('services')
+        .where('uidPrestador', isEqualTo: uid)
+        .get();
+    print('Encontrados: ${snapshot.docs.length} serviços');
+    return snapshot.docs.map((doc) {
+      print('Doc: ${doc.data()}');
+      return ServiceModel.fromMap(doc.data() as Map<String, dynamic>);
+    }).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
+    final user = context.read<AuthBloc>().state is AuthAuthenticated
+        ? (context.read<AuthBloc>().state as AuthAuthenticated).user
+        : null;
+    if (user == null) return const SizedBox.shrink();
     return Center(
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 700),
-        child: ListView(
-          shrinkWrap: true,
-          children: [
-            // Resumo dos serviços cadastrados
-            Card(
-              child: ListTile(
-                leading: const Icon(Icons.build),
-                title: const Text('Você tem X serviços cadastrados'),
-                subtitle: const Text('Y ativos, Z pendentes'),
+        constraints: const BoxConstraints(maxWidth: 900),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              const SizedBox(height: 16),
+              FutureBuilder<List<ServiceEntity>>(
+                key: ValueKey(user.uid),
+                future: fetchMyServices(user.uid),
+                builder: (context, snapshot) {
+                  if (snapshot.hasError) {
+                    print('Erro no FutureBuilder: ${snapshot.error}');
+                    return Center(child: Text('Erro: ${snapshot.error}'));
+                  }
+                  if (!snapshot.hasData)
+                    return const CircularProgressIndicator();
+                  final services = snapshot.data!;
+                  if (services.isEmpty) {
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      showDialog(
+                        context: context,
+                        builder: (_) => AlertDialog(
+                          title: const Text('Cadastre seu primeiro serviço!'),
+                          content: const Text(
+                              'Você ainda não cadastrou nenhum serviço. Clique em "Adicionar novo serviço" para começar.'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: const Text('Fechar'),
+                            ),
+                            ElevatedButton(
+                              onPressed: () {
+                                Navigator.pop(context);
+                                Navigator.of(context)
+                                    .push(
+                                      MaterialPageRoute(
+                                          builder: (_) =>
+                                              const ServiceFormPage()),
+                                    )
+                                    .then((_) => setState(() {}));
+                              },
+                              child: const Text('Adicionar serviço'),
+                            ),
+                          ],
+                        ),
+                      );
+                    });
+                    return const Center(
+                        child: Text('Nenhum serviço cadastrado.'));
+                  }
+                  // Exibir serviços em lista horizontal customizada
+                  return ListView.separated(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: services.length,
+                    separatorBuilder: (context, idx) =>
+                        const SizedBox(height: 10),
+                    itemBuilder: (context, idx) {
+                      final service = services[idx];
+                      return Container(
+                        decoration: BoxDecoration(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .surface
+                              .withOpacity(0.95),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                              color: Theme.of(context)
+                                  .dividerColor
+                                  .withOpacity(0.08)),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 10, horizontal: 16),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            service.imagemUrl != null &&
+                                    service.imagemUrl!.isNotEmpty
+                                ? CircleAvatar(
+                                    backgroundImage:
+                                        NetworkImage(service.imagemUrl!),
+                                    radius: 28)
+                                : const CircleAvatar(
+                                    child: Icon(Icons.person), radius: 28),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    service.titulo,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleMedium
+                                        ?.copyWith(fontWeight: FontWeight.bold),
+                                  ),
+                                  Text(
+                                    user?.cidade ?? '',
+                                    style:
+                                        Theme.of(context).textTheme.bodySmall,
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Row(
+                                    children: [
+                                      Icon(Icons.star,
+                                          color: Colors.amber, size: 18),
+                                      const SizedBox(width: 4),
+                                      Text('4,8',
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .bodyMedium
+                                              ?.copyWith(
+                                                  fontWeight: FontWeight.bold)),
+                                      Text(' / 120 aev.',
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .bodySmall),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Theme.of(context)
+                                    .colorScheme
+                                    .surfaceVariant,
+                                foregroundColor:
+                                    Theme.of(context).colorScheme.onSurface,
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12)),
+                                elevation: 0,
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 18, vertical: 10),
+                              ),
+                              onPressed: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => ProfilePage(
+                                        userId: service.uidPrestador),
+                                  ),
+                                );
+                              },
+                              child: const Text('Ver perfil'),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  );
+                },
               ),
-            ),
-            const SizedBox(height: 16),
-            // Botão adicionar serviço
-            ElevatedButton.icon(
-              onPressed: () {},
-              icon: const Icon(Icons.add),
-              label: const Text('Adicionar novo serviço'),
-            ),
-            const SizedBox(height: 16),
-            // Solicitações/agendamentos recentes
-            Card(
-              child: ListTile(
-                leading: const Icon(Icons.schedule),
-                title: const Text('Solicitações recentes'),
-                subtitle: const Text('Nenhuma pendente'),
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.of(context)
+                      .push(
+                        MaterialPageRoute(
+                            builder: (_) => const ServiceFormPage()),
+                      )
+                      .then((_) => setState(() {}));
+                },
+                icon: const Icon(Icons.add),
+                label: const Text('Adicionar novo serviço'),
               ),
-            ),
-            const SizedBox(height: 16),
-            // Painel de estatísticas (simulado)
-            Card(
-              child: ListTile(
-                leading: const Icon(Icons.bar_chart),
-                title: const Text('Estatísticas'),
-                subtitle: const Text('Visualizações: 0 | Contatos: 0'),
-              ),
-            ),
-            const SizedBox(height: 16),
-            // Dica do dia
-            Card(
-              color: Colors.blue.shade50,
-              child: const ListTile(
-                leading: Icon(Icons.lightbulb),
-                title: Text('Dica do dia'),
-                subtitle: Text(
-                    'Adicione uma imagem ao seu perfil para atrair mais clientes!'),
-              ),
-            ),
-            const SizedBox(height: 16),
-            // Atalhos rápidos
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                IconButton(icon: const Icon(Icons.edit), onPressed: () {}),
-                IconButton(icon: const Icon(Icons.list), onPressed: () {}),
-                IconButton(icon: const Icon(Icons.message), onPressed: () {}),
-              ],
-            ),
-          ],
+              // ... outros widgets do painel do prestador
+            ],
+          ),
         ),
       ),
     );
@@ -460,7 +937,7 @@ class _AnimatedCategoriaCardState extends State<_AnimatedCategoriaCard> {
         decoration: BoxDecoration(
           color: _hovered
               ? Theme.of(context).colorScheme.primary.withOpacity(0.1)
-              : Theme.of(context).cardColor,
+              : Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(16),
           boxShadow: _hovered
               ? [
@@ -512,7 +989,7 @@ class _AnimatedServiceCardState extends State<_AnimatedServiceCard> {
         decoration: BoxDecoration(
           color: _hovered
               ? Theme.of(context).colorScheme.primary.withOpacity(0.08)
-              : Theme.of(context).cardColor,
+              : Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(16),
           boxShadow: _hovered
               ? [

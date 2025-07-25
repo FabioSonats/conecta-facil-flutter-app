@@ -16,6 +16,7 @@ class App extends StatelessWidget {
         builder: (context, state) {
           if (state is AuthLoading || state is AuthInitial) {
             return const MaterialApp(
+              debugShowCheckedModeBanner: false,
               home: Scaffold(
                 body: Center(child: CircularProgressIndicator()),
               ),
@@ -23,6 +24,7 @@ class App extends StatelessWidget {
           }
           if (state is AuthAuthenticated) {
             return MaterialApp(
+              debugShowCheckedModeBanner: false,
               title: 'Conecta Fácil',
               theme: AppTheme.lightTheme,
               darkTheme: AppTheme.darkTheme,
@@ -32,6 +34,7 @@ class App extends StatelessWidget {
           }
           // Se não autenticado, mostra login
           return MaterialApp(
+            debugShowCheckedModeBanner: false,
             title: 'Conecta Fácil',
             theme: AppTheme.lightTheme,
             darkTheme: AppTheme.darkTheme,
