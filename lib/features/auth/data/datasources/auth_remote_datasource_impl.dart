@@ -9,8 +9,10 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
 
   @override
   Future<UserModel?> signIn(String email, String senha) async {
-    final cred = await _auth.signInWithEmailAndPassword(email: email, password: senha);
-    final userDoc = await _firestore.collection('users').doc(cred.user!.uid).get();
+    final cred =
+        await _auth.signInWithEmailAndPassword(email: email, password: senha);
+    final userDoc =
+        await _firestore.collection('users').doc(cred.user!.uid).get();
     if (userDoc.exists) {
       return UserModel.fromMap(userDoc.data()!);
     }
@@ -19,9 +21,13 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
 
   @override
   Future<UserModel?> signUp(UserModel user, String senha) async {
-    final cred = await _auth.createUserWithEmailAndPassword(email: user.email, password: senha);
+    final cred = await _auth.createUserWithEmailAndPassword(
+        email: user.email, password: senha);
     final userWithUid = user.copyWith(uid: cred.user!.uid);
-    await _firestore.collection('users').doc(cred.user!.uid).set(userWithUid.toMap());
+    await _firestore
+        .collection('users')
+        .doc(cred.user!.uid)
+        .set(userWithUid.toMap());
     return userWithUid;
   }
 
@@ -32,6 +38,8 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
 
   @override
   Future<UserModel?> getCurrentUser() async {
+    // Aguarda o carregamento do usuário atual
+    await _auth.authStateChanges().first;
     final user = _auth.currentUser;
     if (user == null) return null;
     final userDoc = await _firestore.collection('users').doc(user.uid).get();
@@ -40,4 +48,4 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     }
     return null;
   }
-} 
+}

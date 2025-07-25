@@ -11,9 +11,24 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final AuthRepository _authRepository = sl<AuthRepository>();
 
   AuthBloc() : super(AuthInitial()) {
+    on<AuthCheckRequested>(_onCheckRequested);
     on<AuthLoginRequested>(_onLoginRequested);
     on<AuthLogoutRequested>(_onLogoutRequested);
     on<AuthSignUpRequested>(_onSignUpRequested);
+  }
+
+  Future<void> _onCheckRequested(AuthCheckRequested event, Emitter<AuthState> emit) async {
+    emit(AuthLoading());
+    try {
+      final user = await _authRepository.getCurrentUser();
+      if (user != null) {
+        emit(AuthAuthenticated(user));
+      } else {
+        emit(AuthUnauthenticated());
+      }
+    } catch (e) {
+      emit(AuthUnauthenticated());
+    }
   }
 
   Future<void> _onLoginRequested(
@@ -22,7 +37,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     try {
       final user = await _authRepository.signIn(event.email, event.senha);
       if (user != null) {
-        emit(AuthAuthenticated());
+        emit(AuthAuthenticated(user));
       } else {
         emit(const AuthError('Usuário ou senha inválidos'));
       }
@@ -48,7 +63,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     try {
       final user = await _authRepository.signUp(event.user, event.senha);
       if (user != null) {
-        emit(AuthAuthenticated());
+        emit(AuthAuthenticated(user));
       } else {
         emit(const AuthError('Erro ao cadastrar usuário.'));
       }

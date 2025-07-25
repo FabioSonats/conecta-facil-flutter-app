@@ -26,3 +26,5 @@ class AuthSignUpRequested extends AuthEvent {
   @override
   List<Object?> get props => [user, senha];
 }
+
+class AuthCheckRequested extends AuthEvent {}
