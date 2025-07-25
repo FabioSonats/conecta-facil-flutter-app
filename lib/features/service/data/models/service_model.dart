@@ -32,11 +32,12 @@ class ServiceModel extends ServiceEntity {
       titulo: map['titulo'],
       descricao: map['descricao'],
       categoria: map['categoria'],
-      preco: (map['preco'] as num).toDouble(),
+      preco: map['preco'] != null ? (map['preco'] as num).toDouble() : 0.0,
       cidade: map['cidade'],
       estado: map['estado'],
       imagemUrl: map['imagemUrl'],
-      criadoEm: map['criadoEm'] != null ? DateTime.parse(map['criadoEm']) : null,
+      criadoEm:
+          map['criadoEm'] != null ? DateTime.parse(map['criadoEm']) : null,
     );
   }
 
@@ -54,4 +55,4 @@ class ServiceModel extends ServiceEntity {
       'criadoEm': criadoEm?.toIso8601String(),
     };
   }
-} 
+}
