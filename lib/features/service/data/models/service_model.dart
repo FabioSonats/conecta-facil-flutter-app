@@ -26,17 +26,29 @@ class ServiceModel extends ServiceEntity {
         );
 
   factory ServiceModel.fromMap(Map<String, dynamic> map) {
+    // Tratamento mais robusto para o campo preco
+    double preco = 0.0;
+    if (map['preco'] != null) {
+      if (map['preco'] is num) {
+        preco = (map['preco'] as num).toDouble();
+      } else if (map['preco'] is String) {
+        preco = double.tryParse(map['preco'] as String) ?? 0.0;
+      }
+    }
+
     return ServiceModel(
-      id: map['id'],
-      uidPrestador: map['uidPrestador'],
-      titulo: map['titulo'],
-      descricao: map['descricao'],
-      categoria: map['categoria'],
-      preco: (map['preco'] as num).toDouble(),
-      cidade: map['cidade'],
-      estado: map['estado'],
-      imagemUrl: map['imagemUrl'],
-      criadoEm: map['criadoEm'] != null ? DateTime.parse(map['criadoEm']) : null,
+      id: map['id']?.toString() ?? '',
+      uidPrestador: map['uidPrestador']?.toString() ?? '',
+      titulo: map['titulo']?.toString() ?? 'Sem título',
+      descricao: map['descricao']?.toString() ?? '',
+      categoria: map['categoria']?.toString() ?? '',
+      preco: preco,
+      cidade: map['cidade']?.toString() ?? '',
+      estado: map['estado']?.toString() ?? '',
+      imagemUrl: map['imagemUrl']?.toString(),
+      criadoEm: map['criadoEm'] != null
+          ? DateTime.tryParse(map['criadoEm'].toString())
+          : null,
     );
   }
 
@@ -54,4 +66,4 @@ class ServiceModel extends ServiceEntity {
       'criadoEm': criadoEm?.toIso8601String(),
     };
   }
-} 
+}
