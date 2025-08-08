@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../auth/presentation/bloc/auth_bloc.dart';
 
 class ServiceFormPage extends StatefulWidget {
   const ServiceFormPage({super.key});
@@ -11,180 +12,140 @@ class ServiceFormPage extends StatefulWidget {
 
 class _ServiceFormPageState extends State<ServiceFormPage> {
   final _formKey = GlobalKey<FormState>();
-  final _tituloController = TextEditingController();
+  String? _tipoServico;
+  String? _area;
   final _descricaoController = TextEditingController();
-  final _precoController = TextEditingController();
-  final _cidadeController = TextEditingController();
-  final _estadoController = TextEditingController();
-  String _categoriaSelecionada = 'Diarista';
+  double? _preco;
 
-  final List<String> _categorias = [
-    'Diarista',
-    'Jardinagem',
-    'Eletricista',
-    'Pintor(a)',
-    'Pedreiro',
-    'Cozinheiro(a)',
-    'Babá',
-    'Personal Trainer',
-    'Fotógrafo(a)',
-    'Manicure',
+  final List<String> tiposServico = [
+    'Diarista', 'Jardinagem', 'Eletricista', 'Pintor(a)', 'Pedreiro',
+    'Cozinheiro(a)', 'Babá', 'Personal Trainer', 'Fotógrafo(a)', 'Manicure',
     'Professor',
+    // ...adicione mais conforme sua lista
   ];
+
+  final List<String> areas = [
+    'Serviços Domésticos',
+    'Serviços Técnicos e Reparos',
+    'Serviços Externos e Ambientais',
+    'Construção e Reforma',
+    'Freelancers e Autônomos',
+    'Beleza e Estética',
+    'Saúde e Bem-estar',
+    'Educação e Treinamentos',
+  ];
+
+  Future<void> _salvarServico() async {
+    final user = context.read<AuthBloc>().state is AuthAuthenticated
+        ? (context.read<AuthBloc>().state as AuthAuthenticated).user
+        : null;
+    if (user == null) return;
+    final docRef = FirebaseFirestore.instance.collection('services').doc();
+    await docRef.set({
+      'id': docRef.id,
+      'uidPrestador': user.uid,
+      'titulo': _tipoServico,
+      'categoria': _area,
+      'descricao': _descricaoController.text.trim(),
+      'preco': _preco ?? 0.0,
+      'cidade': user.cidade ?? '',
+      'estado': user.estado ?? '',
+      'criadoEm': DateTime.now().toIso8601String(),
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Cadastrar Serviço'),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Form(
-          key: _formKey,
-          child: ListView(
-            children: [
-              DropdownButtonFormField<String>(
-                value: _categoriaSelecionada,
-                decoration: const InputDecoration(
-                  labelText: 'Categoria do Serviço',
-                  border: OutlineInputBorder(),
-                ),
-                items: _categorias.map((categoria) {
-                  return DropdownMenuItem(
-                    value: categoria,
-                    child: Text(categoria),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  setState(() {
-                    _categoriaSelecionada = value!;
-                  });
-                },
+      appBar: AppBar(title: const Text('Cadastrar Serviço')),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 500),
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  DropdownButtonFormField<String>(
+                    value: _tipoServico,
+                    decoration:
+                        const InputDecoration(labelText: 'Tipo de Serviço'),
+                    items: tiposServico
+                        .map((tipo) => DropdownMenuItem(
+                              value: tipo,
+                              child: Text(tipo),
+                            ))
+                        .toList(),
+                    onChanged: (v) => setState(() => _tipoServico = v),
+                    validator: (v) =>
+                        v == null ? 'Selecione o tipo de serviço' : null,
+                  ),
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<String>(
+                    value: _area,
+                    decoration: const InputDecoration(labelText: 'Área'),
+                    items: areas
+                        .map((area) => DropdownMenuItem(
+                              value: area,
+                              child: Text(area),
+                            ))
+                        .toList(),
+                    onChanged: (v) => setState(() => _area = v),
+                    validator: (v) => v == null ? 'Selecione a área' : null,
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _descricaoController,
+                    decoration: const InputDecoration(
+                      labelText: 'Descrição do serviço',
+                      alignLabelWithHint: true,
+                      border: OutlineInputBorder(),
+                    ),
+                    minLines: 3,
+                    maxLines: 6,
+                    validator: (v) =>
+                        v == null || v.isEmpty ? 'Descreva o serviço' : null,
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                      decoration: const InputDecoration(
+                        labelText: 'Preço do serviço (R\$)',
+                        border: OutlineInputBorder(),
+                      ),
+                      keyboardType:
+                          TextInputType.numberWithOptions(decimal: true),
+                      validator: (v) {
+                        if (v == null || v.isEmpty) return 'Informe o preço';
+                        final value = double.tryParse(v.replaceAll(',', '.'));
+                        if (value == null) return 'Preço inválido';
+                        if (value < 0) return 'Preço deve ser positivo';
+                        return null;
+                      },
+                      onChanged: (v) =>
+                          _preco = double.tryParse(v.replaceAll(',', '.'))),
+                  const SizedBox(height: 32),
+                  ElevatedButton.icon(
+                    onPressed: () async {
+                      if (_formKey.currentState!.validate() && _preco != null) {
+                        await _salvarServico();
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text('Serviço cadastrado!')),
+                          );
+                          Navigator.pop(context);
+                        }
+                      }
+                    },
+                    icon: const Icon(Icons.save),
+                    label: const Text('Salvar Serviço'),
+                  ),
+                ],
               ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _tituloController,
-                decoration: const InputDecoration(
-                  labelText: 'Título do Serviço',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Por favor, insira o título do serviço';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _descricaoController,
-                decoration: const InputDecoration(
-                  labelText: 'Descrição',
-                  border: OutlineInputBorder(),
-                ),
-                maxLines: 3,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Por favor, insira uma descrição';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _precoController,
-                decoration: const InputDecoration(
-                  labelText: 'Preço (R\$)',
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.number,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Por favor, insira o preço';
-                  }
-                  if (double.tryParse(value) == null) {
-                    return 'Por favor, insira um valor válido';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _cidadeController,
-                decoration: const InputDecoration(
-                  labelText: 'Cidade',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Por favor, insira a cidade';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _estadoController,
-                decoration: const InputDecoration(
-                  labelText: 'Estado',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Por favor, insira o estado';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 32),
-              ElevatedButton(
-                onPressed: () async {
-                  if (_formKey.currentState!.validate()) {
-                    final user = FirebaseAuth.instance.currentUser;
-
-                    if (user == null) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                            content: Text('Usuário não autenticado')),
-                      );
-                      return;
-                    }
-
-                    final uid = user.uid;
-
-                    final servico = {
-                      'categoria': _categoriaSelecionada,
-                      'titulo': _tituloController.text,
-                      'descricao': _descricaoController.text,
-                      'preco': double.parse(_precoController.text),
-                      'cidade': _cidadeController.text,
-                      'estado': _estadoController.text,
-                      'dataCadastro': Timestamp.now(),
-                      'prestadorUid': uid, // Vinculando o serviço ao prestador
-                    };
-
-                    try {
-                      await FirebaseFirestore.instance
-                          .collection('servicos')
-                          .add(servico);
-
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                            content: Text('Serviço cadastrado com sucesso!')),
-                      );
-
-                      Navigator.pop(context);
-                    } catch (e) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Erro ao cadastrar: $e')),
-                      );
-                    }
-                  }
-                },
-                child: const Text('Cadastrar Serviço'),
-              ),
-            ],
+            ),
           ),
         ),
       ),

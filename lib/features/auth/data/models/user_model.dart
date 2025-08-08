@@ -24,18 +24,25 @@ class UserModel extends UserEntity {
         );
 
   factory UserModel.fromMap(Map<String, dynamic> map) {
-    return UserModel(
-      uid: map['uid'],
-      nome: map['nome'],
-      email: map['email'],
-      tipoPerfil: map['tipoPerfil'],
-      telefone: map['telefone'],
-      cidade: map['cidade'],
-      estado: map['estado'],
-      fotoPerfilUrl: map['fotoPerfilUrl'],
-      criadoEm:
-          map['criadoEm'] != null ? DateTime.parse(map['criadoEm']) : null,
-    );
+    try {
+      return UserModel(
+        uid: map['uid']?.toString() ?? '',
+        nome: map['nome']?.toString() ?? '',
+        email: map['email']?.toString() ?? '',
+        tipoPerfil: map['tipoPerfil']?.toString() ?? 'contratante',
+        telefone: map['telefone']?.toString(),
+        cidade: map['cidade']?.toString(),
+        estado: map['estado']?.toString(),
+        fotoPerfilUrl: map['fotoPerfilUrl']?.toString(),
+        criadoEm: map['criadoEm'] != null
+            ? DateTime.tryParse(map['criadoEm'].toString())
+            : null,
+      );
+    } catch (e) {
+      print('Erro ao criar UserModel.fromMap: $e');
+      print('Dados recebidos: $map');
+      rethrow;
+    }
   }
 
   Map<String, dynamic> toMap() {

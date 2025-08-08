@@ -11,37 +11,75 @@ class App extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (_) => AuthBloc()..add(AuthCheckRequested()),
-      child: BlocBuilder<AuthBloc, AuthState>(
-        builder: (context, state) {
-          if (state is AuthLoading || state is AuthInitial) {
-            return const MaterialApp(
-              debugShowCheckedModeBanner: false,
-              home: Scaffold(
-                body: Center(child: CircularProgressIndicator()),
-              ),
-            );
-          }
+      create: (context) {
+        final authBloc = AuthBloc()..add(AuthCheckRequested());
+
+        // Adiciona logger para debug
+        authBloc.stream.listen((state) {
+          debugPrint('AuthBloc State: ${state.runtimeType}');
           if (state is AuthAuthenticated) {
-            return MaterialApp(
-              debugShowCheckedModeBanner: false,
-              title: 'Conecta Fácil',
-              theme: AppTheme.lightTheme,
-              darkTheme: AppTheme.darkTheme,
-              themeMode: ThemeMode.system,
-              home: const HomePage(),
-            );
+            debugPrint('Usuário autenticado: ${state.user.nome}');
           }
-          // Se não autenticado, mostra login
-          return MaterialApp(
-            debugShowCheckedModeBanner: false,
-            title: 'Conecta Fácil',
-            theme: AppTheme.lightTheme,
-            darkTheme: AppTheme.darkTheme,
-            themeMode: ThemeMode.system,
-            home: const LoginPage(),
-          );
-        },
+        });
+
+        return authBloc;
+      },
+      child: MaterialApp(
+        debugShowCheckedModeBanner: false,
+        title: 'Conecta Fácil',
+        theme: AppTheme.lightTheme,
+        darkTheme: AppTheme.darkTheme,
+        themeMode: ThemeMode.system,
+        home: BlocBuilder<AuthBloc, AuthState>(
+          builder: (context, state) {
+            // Debug do estado atual
+            debugPrint('Current Auth State: ${state.runtimeType}');
+
+            // Se está carregando inicialmente, mostra loading
+            if (state is AuthInitial) {
+              debugPrint('Estado inicial - mostrando loading');
+              return const Scaffold(
+                body: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      CircularProgressIndicator(),
+                      SizedBox(height: 16),
+                      Text('Inicializando...'),
+                    ],
+                  ),
+                ),
+              );
+            }
+
+            // Se está carregando (verificando usuário), mostra loading
+            if (state is AuthLoading) {
+              debugPrint('Estado loading - verificando usuário');
+              return const Scaffold(
+                body: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      CircularProgressIndicator(),
+                      SizedBox(height: 16),
+                      Text('Verificando usuário...'),
+                    ],
+                  ),
+                ),
+              );
+            }
+
+            // Se está autenticado, vai para HomePage
+            if (state is AuthAuthenticated) {
+              debugPrint('Usuário autenticado - indo para HomePage');
+              return const HomePage();
+            }
+
+            // Se não está autenticado, vai para LoginPage
+            debugPrint('Usuário não autenticado - indo para LoginPage');
+            return const LoginPage();
+          },
+        ),
       ),
     );
   }
